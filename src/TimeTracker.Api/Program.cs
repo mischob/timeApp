@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
+using FastEndpoints;
+using FastEndpoints.Swagger;
 
 namespace TimeTracker.Api;
 
@@ -12,12 +10,22 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
-        builder.Services.AddControllers();
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(c =>
-        {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "TimeTracker API", Version = "v1" });
-        });
+        builder.Services
+            .AddFastEndpoints()
+            .SwaggerDocument(o =>
+            {
+                o.DocumentSettings = s =>
+                {
+                    s.Title = "TimeTracker API";
+                    s.Version = "v1";
+                };
+                o.ShortSchemaNames = true;
+                o.RemoveEmptyRequestSchema = true;
+            });
+
+        // Add authentication and authorization
+        builder.Services.AddAuthentication();
+        builder.Services.AddAuthorization();
 
         // Add CORS
         builder.Services.AddCors(options =>
@@ -25,8 +33,8 @@ public class Program
             options.AddPolicy("AllowBlazorClient", policy =>
             {
                 policy.WithOrigins("http://localhost:5001")
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
             });
         });
 
@@ -35,14 +43,18 @@ public class Program
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
-            app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TimeTracker API v1"));
+            app.UseDeveloperExceptionPage();
+            app.UseSwaggerGen();
         }
 
         app.UseHttpsRedirection();
         app.UseCors("AllowBlazorClient");
+
+        // Add authentication and authorization middleware
+        app.UseAuthentication();
         app.UseAuthorization();
-        app.MapControllers();
+
+        app.UseFastEndpoints();
 
         app.Run();
     }
